@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>书 架</title>
+<style>
+/* = RESET = */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink:    #18181b;
+  --paper:  #f4efe6;
+  --warm:   #e8e0d0;
+  --bg:     #faf8f4;
+  --accent: #c0392b;
+  --acc2:   #8b2217;
+  --muted:  #8a8070;
+  --border: #d8d0c4;
+  --spine:  #a89880;
+  --sh-sm:  0 2px 8px rgba(0,0,0,0.18);
+  --sh-md:  0 6px 24px rgba(0,0,0,0.22);
+  --sh-lg:  0 14px 44px rgba(0,0,0,0.3);
+  --rr:     12px;
+  --rr-sm:  8px;
+}
+html, body { height: 100%; overflow: hidden; touch-action: none; }
+body { font-family: 'Georgia','Noto Serif SC','SimSun',serif; background: var(--warm); color: var(--ink); }
+
+/* = 
+SHELF VIEW 
+= */ 
+#shelf-view { 
+position: fixed; inset: 0; 
+display: flex; flex-direction: column; 
+background: var(--warm); 
+transition: opacity .4s, transform .4s; 
+} 
+#shelf-view.hidden { opacity: 0; transform: scale(.96); pointer-events: none; }
+
+.shelf-header { 
+flex-shrink: 0; background: var(--ink); color: var(--paper); 
+height: 56px; display: flex; align-items: center; 
+padding: 0 20px; justify-content: space-between; 
+box-shadow: 0 2px 12px rgba(0,0,0,.35); z-index: 10; position: relative; 
+} 
+.shelf-logo { font-size: 17px; letter-spacing: .15em; display: flex; align-items: center; gap: 9px; } 
+.logo-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+
+.shelf-add-btn { 
+background: var(--accent); color: #fff; border: none; 
+padding: 8px 18px; font-size: 12px; letter-spacing: .06em; 
+cursor: pointer; font-family: inherit; 
+border-radius: var(--rr); box-shadow: 0 4px 14px rgba(192,57,43,.4); 
+transition: background .15s, transform .1s, box-shadow .15s; 
+} 
+.shelf-header-actions { display: flex; gap: 10px; }
+.shelf-add-btn.ghost {
+  background: transparent; color: var(--paper); border: 1.5px solid #3f3f44;
+  box-shadow: none;
+}
+.shelf-add-btn.ghost:hover { background: rgba(255,255,255,.06); box-shadow: none; }
+
+.shelf-rule-right { display: flex; align-items: center; gap: 12px; }
+.sort-btn {
+  background: #fff; border: 1px solid var(--border); color: var(--muted);
+  font-size: 11px; letter-spacing: .04em; padding: 5px 11px;
+  border-radius: var(--rr-sm); cursor: pointer; font-family: inherit;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sort-btn.active { border-color: var(--accent); color: #fff; background: var(--accent); }
+
+
+.shelf-body { 
+flex: 1; overflow-y: auto; overflow-x: hidden; 
+padding: 28px 20px 70px; scroll-behavior: smooth; 
+touch-action: pan-y; 
+} 
+.shelf-body::-webkit-scrollbar { width: 6px; } 
+.shelf-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.shelf-rule { 
+font-size: 11px; letter-spacing: .2em; color: var(--muted); 
+text-transform: uppercase; margin-bottom: 24px; 
+padding-bottom: 12px; border-bottom: 1px solid var(--border); 
+display: flex; justify-content: space-between; align-items: center; 
+}
+
+.books-grid { 
+display: grid; 
+grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+gap: 32px 18px; 
+} 
+.empty-wrap { 
+grid-column: 1/-1; display: flex; flex-direction: column; 
+align-items: center; padding: 70px 20px; color: var(--muted); text-align: center; 
+} 
+.empty-icon { font-size: 52px; opacity: .45; margin-bottom: 16px; } 
+.empty-wrap h2 { font-size: 18px; font-weight: 400; color: var(--ink); margin-bottom: 8px; } 
+.empty-wrap p { font-size: 13px; line-height: 1.8; }
+
+/* = 
+BOOK CARD 
+= */ 
+.book-card { 
+cursor: pointer; position: relative; 
+display: flex; flex-direction: column; align-items: center; 
+animation: cardIn .4s ease both; 
+} 
+@keyframes cardIn { from { opacity:0; transform:translateY(16px) scale(.95); } to { opacity:1; transform:none; } }
+
+.book-3d { 
+position: relative; width: 100%; aspect-ratio: 2/3; max-width: 138px; 
+transition: transform .25s ease, box-shadow .25s ease; 
+} 
+@media (hover: hover) {
+  .book-card:hover .book-3d { transform: translateY(-6px) rotateY(-5deg); box-shadow: 8px 20px 36px rgba(0,0,0,.3); }
+}
+.book-3d::before { 
+content: ''; position: absolute; inset: 0; 
+background: #c8bfb0; transform: translate(4px,5px) rotate(.8deg); 
+z-index: -2; border-radius: 0 4px 4px 0; 
+} 
+.book-3d::after { 
+content: ''; position: absolute; inset: 0; 
+background: #b4ab9c; transform: translate(7px,9px) rotate(1.6deg); 
+z-index: -3; border-radius: 0 4px 4px 0; 
+} 
+.book-spine-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--spine); border-radius: 4px 0 0 4px; z-index: 2; } 
+.book-cover-img { 
+position: absolute; inset: 0; width: 100%; height: 100%; 
+object-fit: cover; border-radius: 0 4px 4px 0; 
+border-left: 6px solid var(--spine); box-shadow: var(--sh-md); display: block; 
+} 
+.book-cover-blank { 
+position: absolute; inset: 0; background: var(--bg); 
+border-radius: 0 4px 4px 0; border-left: 6px solid var(--spine); 
+box-shadow: var(--sh-md); display: flex; align-items: center; justify-content: center; 
+font-size: 26px; color: var(--muted); 
+} 
+.book-dir-badge { 
+position: absolute; bottom: 5px; right: 5px; 
+background: rgba(20,20,20,.72); color: #ddd; 
+font-size: 9px; padding: 2px 5px; border-radius: 4px; z-index: 5; 
+pointer-events: none; letter-spacing: .06em; 
+}
+
+.book-label { margin-top: 10px; text-align: center; width: 100%; max-width: 138px; } 
+.book-name { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } 
+.book-pages { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* = 
+ADD-BOOK SETUP PANEL 
+= */ 
+#setup-panel { 
+position: fixed; inset: 0; z-index: 300; 
+display: flex; align-items: flex-end; justify-content: center; 
+background: rgba(0,0,0,.55); 
+opacity: 0; pointer-events: none; 
+transition: opacity .3s; 
+} 
+#setup-panel.open { opacity: 1; pointer-events: all; }
+
+#batch-setup-panel {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0,0,0,.55);
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+#batch-setup-panel.open { opacity: 1; pointer-events: all; }
+#batch-setup-panel.open .setup-sheet { transform: translateY(0); opacity: 1; }
+
+.setup-sheet { 
+width: 100%; max-width: 540px; 
+background: var(--bg); border-radius: 20px 20px 0 0; 
+padding: 0 0 env(safe-area-inset-bottom,0); 
+box-shadow: 0 -8px 40px rgba(0,0,0,.28); 
+transform: translateY(40px); opacity: 0; 
+transition: transform .35s cubic-bezier(.32,0,.15,1), opacity .3s; 
+max-height: 90vh; overflow-y: auto; 
+} 
+#setup-panel.open .setup-sheet { transform: translateY(0); opacity: 1; }
+
+.setup-handle { 
+display: flex; justify-content: center; padding: 14px 0 6px; 
+} 
+.setup-handle-bar { width: 40px; height: 4px; background: var(--border); border-radius: 2px; } 
+.setup-title { font-size: 16px; font-weight: 400; letter-spacing: .08em; padding: 0 24px 16px; color: var(--ink); }
+
+.setup-previews { 
+display: flex; gap: 12px; overflow-x: auto; padding: 0 24px 20px; 
+scrollbar-width: none; 
+} 
+.setup-previews::-webkit-scrollbar { display: none; } 
+.setup-thumb { 
+flex-shrink: 0; width: 72px; height: 100px; 
+object-fit: cover; border-radius: 4px; border: 2px solid transparent; 
+box-shadow: var(--sh-sm); cursor: pointer; transition: border-color .15s, transform .15s; 
+} 
+.setup-thumb.selected { border-color: var(--accent); transform: scale(1.05); }
+
+.setup-field { padding: 0 24px 18px; } 
+.setup-field label { display: block; font-size: 11px; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; } 
+.setup-field input[type=text] { 
+width: 100%; border: 1px solid var(--border); background: #fff; 
+padding: 10px 14px; font-size: 14px; font-family: inherit; color: var(--ink); 
+border-radius: var(--rr-sm); outline: none; 
+transition: border-color .15s; 
+} 
+.setup-field input[type=text]:focus { border-color: var(--ink); }
+
+.dir-toggle { display: flex; gap: 10px; } 
+.dir-opt { 
+flex: 1; padding: 10px 6px; text-align: center; cursor: pointer; 
+border: 1.5px solid var(--border); border-radius: var(--rr-sm); 
+font-size: 13px; color: var(--muted); background: #fff; 
+transition: border-color .15s, color .15s, background .15s; 
+user-select: none; 
+} 
+.dir-opt.active { border-color: var(--accent); color: var(--accent); background: #fdf3f2; } 
+.dir-opt .dir-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+
+.setup-actions { display: flex; gap: 12px; padding: 4px 24px 24px; } 
+.setup-cancel-btn { 
+flex: 1; padding: 12px; border: 1px solid var(--border); background: none; 
+font-size: 13px; font-family: inherit; color: var(--muted); cursor: pointer; 
+border-radius: var(--rr); transition: border-color .15s, color .15s; 
+} 
+.setup-cancel-btn:hover { border-color: var(--ink); color: var(--ink); } 
+.setup-confirm-btn { 
+flex: 2; padding: 12px; background: var(--accent); color: #fff; border: none; 
+font-size: 13px; font-family: inherit; cursor: pointer; 
+border-radius: var(--rr); box-shadow: 0 4px 14px rgba(192,57,43,.4); 
+transition: background .15s; 
+} 
+.setup-confirm-btn:hover { background: var(--acc2); }
+
+.batch-hint { padding: 0 24px 16px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.batch-list {
+  max-height: 240px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: var(--rr-sm); background: #fff;
+}
+.batch-list::-webkit-scrollbar { width: 5px; }
+.batch-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.batch-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+}
+.batch-item:last-child { border-bottom: none; }
+.batch-item img {
+  width: 30px; height: 42px; object-fit: cover; border-radius: 3px;
+  flex-shrink: 0; box-shadow: var(--sh-sm);
+}
+.batch-item-info { flex: 1; min-width: 0; }
+.batch-item-name {
+  font-size: 12px; color: var(--ink); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.batch-item-pages { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.batch-item-skip { font-size: 10px; color: var(--accent); flex-shrink: 0; }
+
+/* = 
+READER VIEW 
+= */ 
+#reader-view { 
+position: fixed; inset: 0; 
+display: flex; flex-direction: column; 
+background: #0e0e0e; 
+opacity: 0; transform: scale(1.04); pointer-events: none; 
+transition: opacity .35s, transform .35s; 
+} 
+#reader-view.visible { opacity: 1; transform: scale(1); pointer-events: all; }
+
+.reader-bar { 
+flex-shrink: 0; height: 52px; background: #161616; 
+display: flex; align-items: center; padding: 0 14px; gap: 10px; 
+border-bottom: 1px solid #252525; z-index: 20; position: relative; 
+touch-action: manipulation;
+} 
+/* floating round buttons on top bar */ 
+.rdr-btn { 
+background: #2a2a2a; color: #ccc; border: none; 
+height: 34px; padding: 0 14px; font-size: 12px; font-family: inherit; 
+cursor: pointer; border-radius: var(--rr); white-space: nowrap; 
+box-shadow: 0 3px 10px rgba(0,0,0,.4); 
+transition: background .15s, color .15s, transform .1s; 
+display: flex; align-items: center; gap: 5px; 
+} 
+.rdr-btn:hover { background: #3a3a3a; color: #fff; } 
+.rdr-btn:active { transform: scale(.96); } 
+.rdr-btn.accent { background: var(--accent); color: #fff; box-shadow: 0 3px 12px rgba(192,57,43,.5); } 
+.rdr-btn.accent:hover { background: var(--acc2); }
+.rdr-btn.danger { background: #8b2217; color: #fff; box-shadow: 0 3px 12px rgba(139,34,23,.45); }
+.rdr-btn.danger:hover { background: var(--accent); }
+
+.rdr-title { 
+flex: 1; font-size: 13px; color: #aaa; letter-spacing: .06em; 
+overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
+text-align: center; 
+} 
+.rdr-num { font-size: 11px; color: #555; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Stage */ 
+.reader-stage { 
+flex: 1; overflow: hidden; position: relative; 
+touch-action: none; 
+} 
+.page-strip { 
+display: flex; width: 100%; height: 100%; 
+will-change: transform; 
+transition: transform .38s cubic-bezier(.4,0,.2,1); 
+} 
+.page-strip.notrans { transition: none; }
+
+.page-frame { 
+flex-shrink: 0; width: 100%; height: 100%; 
+display: flex; align-items: center; justify-content: center; 
+overflow: hidden; position: relative; 
+} 
+.page-frame img { 
+max-width: 100%; max-height: 100%; 
+object-fit: contain; display: block; 
+user-select: none; -webkit-user-drag: none; 
+transform-origin: center center; 
+} 
+.page-spin { 
+width: 50px; height: 50px; border: 2px solid #2a2a2a; border-top-color: #666; 
+border-radius: 50%; animation: spin .9s linear infinite; 
+} 
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Reader footer */ 
+.reader-footer { 
+flex-shrink: 0; height: 44px; background: #161616; 
+display: flex; align-items: center; padding: 0 16px; gap: 10px; 
+border-top: 1px solid #222; position: relative; 
+} 
+.prog-track { 
+flex: 1; height: 4px; background: #2c2c2c; 
+border-radius: 3px; cursor: pointer; position: relative; 
+} 
+.prog-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; min-width: 4px; }
+
+/* = 
+TABLE OF CONTENTS PANEL 
+= */ 
+#toc-panel { 
+position: fixed; inset: 0; z-index: 200; 
+display: flex; justify-content: flex-end; 
+background: rgba(0,0,0,.55); 
+opacity: 0; pointer-events: none; 
+transition: opacity .3s; 
+} 
+#toc-panel.open { opacity: 1; pointer-events: all; }
+
+.toc-sheet { 
+width: min(320px, 85vw); height: 100%; background: #161616; 
+display: flex; flex-direction: column; 
+transform: translateX(100%); 
+transition: transform .35s cubic-bezier(.32,0,.15,1); 
+box-shadow: -8px 0 32px rgba(0,0,0,.5); 
+} 
+#toc-panel.open .toc-sheet { transform: translateX(0); }
+
+.toc-header { 
+flex-shrink: 0; padding: 18px 18px 12px; 
+border-bottom: 1px solid #282828; 
+display: flex; align-items: center; justify-content: space-between; 
+} 
+.toc-header-title { font-size: 13px; color: #aaa; letter-spacing: .1em; } 
+.toc-close { 
+background: #2a2a2a; border: none; color: #888; width: 30px; height: 30px; 
+border-radius: 50%; cursor: pointer; font-size: 16px; 
+display: flex; align-items: center; justify-content: center; 
+transition: background .15s, color .15s; 
+} 
+.toc-close:hover { background: #3a3a3a; color: #fff; }
+
+.toc-grid { 
+flex: 1; overflow-y: auto; overflow-x: hidden;
+min-height: 0; position: relative;
+padding: 0;
+-webkit-overflow-scrolling: touch;
+scrollbar-width: thin; scrollbar-color: #333 transparent; 
+} 
+.toc-grid::-webkit-scrollbar { width: 4px; } 
+.toc-grid::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.toc-spacer { width: 100%; pointer-events: none; }
+.toc-float {
+position: absolute; left: 12px; right: 12px; top: 0;
+}
+.toc-cell {
+position: absolute; min-width: 0;
+}
+
+.toc-thumb-wrap { 
+cursor: pointer; border-radius: 4px; overflow: hidden; 
+position: relative; background: #1e1e1e;
+box-shadow: inset 0 0 0 2px transparent;
+transition: box-shadow .15s;
+} 
+.toc-thumb-wrap:hover { box-shadow: inset 0 0 0 2px #555; } 
+.toc-thumb-wrap.current { box-shadow: inset 0 0 0 2px var(--accent); }
+/* 固定 2:3 比例，用 padding-top 撑开，避免 aspect-ratio 在各浏览器的兼容问题 */
+.toc-thumb-ratio {
+width: 100%; padding-top: 150%; position: relative; height: 0;
+}
+.toc-thumb-ratio > img,
+.toc-thumb-ratio > .toc-thumb-spin {
+position: absolute; inset: 0; width: 100%; height: 100%;
+}
+.toc-thumb-wrap img { object-fit: cover; display: block; pointer-events: none; } 
+.toc-thumb-spin { 
+display: flex; align-items: center; justify-content: center; 
+background: #1e1e1e; pointer-events: none;
+} 
+.toc-page-num { 
+position: absolute; bottom: 4px; right: 4px; z-index: 2;
+background: rgba(0,0,0,.75); color: #ccc; 
+font-size: 9px; padding: 1px 5px; border-radius: 3px; 
+font-variant-numeric: tabular-nums; pointer-events: none;
+}
+
+/* =
+COMPLETION OVERLAY
+= */
+#completion-overlay {
+  position: fixed; inset: 0; z-index: 250;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.78);
+  opacity: 0; pointer-events: none;
+  transition: opacity .35s;
+}
+#completion-overlay.visible { opacity: 1; pointer-events: all; }
+.completion-box {
+  background: #1c1c1c; border: 1px solid #2e2e2e;
+  border-radius: 20px; padding: 40px 32px 32px;
+  text-align: center; max-width: 320px; width: 90%;
+  box-shadow: 0 24px 64px rgba(0,0,0,.65);
+  animation: slideUp .3s ease;
+}
+.completion-icon { font-size: 52px; margin-bottom: 16px; }
+.completion-title { font-size: 18px; color: #f0f0f0; margin-bottom: 8px; letter-spacing: .06em; }
+.completion-sub { font-size: 13px; color: #666; margin-bottom: 6px; }
+.completion-book {
+  font-size: 14px; color: #999; margin-bottom: 28px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.completion-btn {
+  background: var(--accent); color: #fff; border: none;
+  padding: 14px 0; font-size: 14px; font-family: inherit;
+  border-radius: var(--rr); cursor: pointer; width: 100%;
+  box-shadow: 0 4px 16px rgba(192,57,43,.45);
+  transition: background .15s, transform .1s;
+}
+.completion-btn:hover { background: var(--acc2); }
+.completion-btn:active { transform: scale(.97); }
+
+/* RTL progress bar — fill grows from right */
+.prog-track.rtl-dir { direction: rtl; }
+
+/* = 
+RENAME MODAL 
+= */ 
+.modal-bg { 
+position: fixed; inset: 0; background: rgba(0,0,0,.55); 
+z-index: 400; display: none; 
+align-items: center; justify-content: center; 
+} 
+.modal-bg.open { display: flex; animation: fadeIn .2s ease; } 
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } } 
+.modal-box { 
+background: var(--bg); padding: 28px 28px 24px; 
+width: min(340px,90vw); 
+box-shadow: var(--sh-lg); border-radius: 16px; 
+animation: slideUp .25s ease; 
+} 
+@keyframes slideUp { from { transform:translateY(16px);opacity:0; } to { transform:none;opacity:1; } } 
+.modal-box h3 { font-size: 15px; font-weight: 400; margin-bottom: 14px; letter-spacing: .05em; } 
+.modal-msg { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 4px; }
+.modal-msg strong { color: var(--ink); font-weight: 400; }
+.modal-box input { 
+width: 100%; border: 1px solid var(--border); background: #fff; 
+padding: 10px 14px; font-size: 13px; font-family: inherit; color: var(--ink); 
+border-radius: var(--rr-sm); outline: none; 
+} 
+.modal-box input:focus { border-color: var(--ink); } 
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; } 
+.btn-cancel { 
+background: none; border: 1px solid var(--border); 
+padding: 8px 18px; font-size: 12px; font-family: inherit; color: var(--muted); 
+cursor: pointer; border-radius: var(--rr); transition: border-color .15s, color .15s; 
+} 
+.btn-cancel:hover { border-color: var(--ink); color: var(--ink); } 
+.btn-ok { 
+background: var(--ink); color: var(--paper); border: none; 
+padding: 8px 18px; font-size: 12px; font-family: inherit; 
+cursor: pointer; border-radius: var(--rr); transition: background .15s; 
+} 
+.btn-ok:hover { background: var(--accent); } 
+.btn-ok.danger { background: var(--accent); }
+.btn-ok.danger:hover { background: var(--acc2); }
+</style>
+</head>
+<body>
+
+<!--  SHELF  -->
+<div id="shelf-view">
+  <div class="shelf-header">
+    <div class="shelf-logo"><span class="logo-dot"></span>书 架</div>
+    <div class="shelf-header-actions">
+      <button class="shelf-add-btn ghost" id="batch-open-btn">批量导入</button>
+      <button class="shelf-add-btn" id="open-btn">＋ 添加书籍</button>
+    </div>
+    <input type="file" id="folder-input" webkitdirectory multiple accept="image/*" style="display:none">
+    <input type="file" id="batch-folder-input" webkitdirectory multiple accept="image/*" style="display:none">
+  </div>
+  <div class="shelf-body" id="shelf-body">
+    <div class="shelf-rule">
+      <span>我的收藏</span>
+      <div class="shelf-rule-right">
+        <button class="sort-btn" id="sort-btn" title="按首字母排序">
+          <span id="sort-icon">A→Z</span>
+        </button>
+        <span id="shelf-count" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div class="books-grid" id="books-grid">
+      <div class="empty-wrap" id="empty-state">
+        <div class="empty-icon">📚</div>
+        <h2>书架还是空的</h2>
+        <p>点击右上角「添加书籍」<br>选取含图片的文件夹</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--  ADD-BOOK SETUP  -->
+<div id="setup-panel">
+  <div class="setup-sheet">
+    <div class="setup-handle"><div class="setup-handle-bar"></div></div>
+    <div class="setup-title">添加书籍</div>
+
+<!-- cover preview strip -->
+<div class="setup-previews" id="setup-previews"></div>
+
+<div class="setup-field">
+  <label>书籍名称</label>
+  <input type="text" id="setup-name" placeholder="输入书名">
+</div>
+
+<div class="setup-field">
+  <label>翻页方向</label>
+  <div class="dir-toggle">
+    <div class="dir-opt active" id="dir-rtl" data-dir="rtl">
+      <span class="dir-icon">⇐</span>从右往左（漫画）
+    </div>
+    <div class="dir-opt" id="dir-ltr" data-dir="ltr">
+      <span class="dir-icon">⇒</span>从左往右（小说）
+    </div>
+  </div>
+</div>
+
+<div class="setup-actions">
+  <button class="setup-cancel-btn" id="setup-cancel">取消</button>
+  <button class="setup-confirm-btn" id="setup-confirm">加入书架</button>
+</div>
+  </div>
+</div>
+
+<!--  BATCH IMPORT SETUP  -->
+<div id="batch-setup-panel">
+  <div class="setup-sheet">
+    <div class="setup-handle"><div class="setup-handle-bar"></div></div>
+    <div class="setup-title">批量导入</div>
+    <div class="batch-hint" id="batch-hint"></div>
+
+    <div class="setup-field">
+      <label>翻页方向（应用于全部）</label>
+      <div class="dir-toggle">
+        <div class="dir-opt active" id="batch-dir-rtl" data-dir="rtl">
+          <span class="dir-icon">⇐</span>从右往左（漫画）
+        </div>
+        <div class="dir-opt" id="batch-dir-ltr" data-dir="ltr">
+          <span class="dir-icon">⇒</span>从左往右（小说）
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-field">
+      <label>将创建的书籍</label>
+      <div class="batch-list" id="batch-list"></div>
+    </div>
+
+    <div class="setup-actions">
+      <button class="setup-cancel-btn" id="batch-cancel">取消</button>
+      <button class="setup-confirm-btn" id="batch-confirm">全部加入书架</button>
+    </div>
+  </div>
+</div>
+
+<!--  READER  -->
+<div id="reader-view">
+  <div class="reader-bar">
+    <button class="rdr-btn" id="back-btn">← 返回</button>
+    <div class="rdr-title" id="rdr-title"></div>
+    <div class="rdr-num" id="rdr-num"></div>
+    <button class="rdr-btn" id="rdr-rename-btn">重命名</button>
+    <button class="rdr-btn danger" id="rdr-delete-btn">删除</button>
+    <button class="rdr-btn" id="toc-btn">目 录</button>
+  </div>
+  <div class="reader-stage" id="rdr-stage">
+    <div class="page-strip" id="page-strip"></div>
+  </div>
+  <div class="reader-footer">
+    <div class="prog-track" id="prog-track">
+      <div class="prog-fill" id="prog-fill"></div>
+    </div>
+  </div>
+</div>
+
+<!--  TABLE OF CONTENTS  -->
+<div id="toc-panel">
+  <div class="toc-sheet" id="toc-sheet">
+    <div class="toc-header">
+      <span class="toc-header-title">目 录</span>
+      <button class="toc-close" id="toc-close">×</button>
+    </div>
+    <div class="toc-grid" id="toc-grid"></div>
+  </div>
+</div>
+
+<!--  COMPLETION OVERLAY  -->
+<div id="completion-overlay">
+  <div class="completion-box">
+    <div class="completion-icon">🎉</div>
+    <div class="completion-title">已完成阅读</div>
+    <div class="completion-sub">您已阅读完</div>
+    <div class="completion-book" id="completion-title"></div>
+    <button class="completion-btn" id="completion-back-btn">返回书架</button>
+  </div>
+</div>
+
+<!--  RENAME MODAL  -->
+<div class="modal-bg" id="rename-modal">
+  <div class="modal-box">
+    <h3>重命名书籍</h3>
+    <input type="text" id="rename-input" placeholder="输入新名称">
+    <div class="modal-actions">
+      <button class="btn-cancel" id="rename-cancel">取消</button>
+      <button class="btn-ok" id="rename-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<!--  DELETE CONFIRM MODAL  -->
+<div class="modal-bg" id="delete-modal">
+  <div class="modal-box">
+    <h3>删除书籍</h3>
+    <p class="modal-msg">确定要删除 <strong id="delete-book-name"></strong> 吗？<br>此操作不可恢复。</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="delete-cancel">取消</button>
+      <button class="btn-ok danger" id="delete-ok">删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+//
+//  STATE
+//
+const books = [];
+let cur = null, curPage = 0;
+let renameTarget = null;
+let deleteTarget = null;
+
+// setup state
+let pendingFiles = [], pendingGroups = {}, pendingDir = 'rtl', pendingCoverIdx = 0;
+
+const PRELOAD = 3;
+const DB_NAME = 'bookshelf', DB_VERSION = 1;
+
+//
+//  INDEXEDDB — 持久化书架
+//
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('books')) {
+        const s = db.createObjectStore('books', { keyPath: 'id' });
+        s.createIndex('rawName', 'rawName', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('pages')) {
+        db.createObjectStore('pages', { keyPath: ['bookId', 'pageIdx'] })
+          .createIndex('bookId', 'bookId', { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function updateBookMeta(book) {
+  const db = await openDB();
+  const existing = await new Promise((res, rej) => {
+    const r = db.transaction('books', 'readonly').objectStore('books').get(book.id);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  if (!existing) return;
+  const tx = db.transaction('books', 'readwrite');
+  tx.objectStore('books').put({
+    ...existing,
+    name: book.name,
+    dir: book.dir,
+    lastPage: book.lastPage ?? existing.lastPage ?? 0
+  });
+  return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+}
+async function saveBookToDB(book, files) {
+  const db = await openDB();
+  const tx = db.transaction(['books', 'pages'], 'readwrite');
+  tx.objectStore('books').put({
+    id: book.id,
+    rawName: book.rawName,
+    name: book.name,
+    dir: book.dir,
+    coverIdx: book.coverIdx,
+    pageCount: files.length,
+    lastPage: book.lastPage || 0,
+    addedAt: book.addedAt || Date.now()
+  });
+  const pageStore = tx.objectStore('pages');
+  for (let i = 0; i < files.length; i++) {
+    pageStore.put({ bookId: book.id, pageIdx: i, blob: files[i], name: files[i].name });
+  }
+  return new Promise((res, rej) => {
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+async function saveLastPage(book) {
+  if (!book?.id) return;
+  book.lastPage = curPage;
+  const db = await openDB();
+  const tx = db.transaction('books', 'readwrite');
+  const store = tx.objectStore('books');
+  const r = store.get(book.id);
+  r.onsuccess = () => {
+    if (r.result) store.put({ ...r.result, lastPage: curPage });
+  };
+}
+
+async function loadBooksFromDB() {
+  const db = await openDB();
+  const metas = await new Promise((res, rej) => {
+    const r = db.transaction('books', 'readonly').objectStore('books').getAll();
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  metas.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+
+  for (const meta of metas) {
+    const pageRecords = await new Promise((res, rej) => {
+      const r = db.transaction('pages', 'readonly').objectStore('pages').index('bookId').getAll(meta.id);
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    pageRecords.sort((a, b) => a.pageIdx - b.pageIdx);
+    if (!pageRecords.length) continue;
+
+    const blobs = pageRecords.map(p => p.blob);
+    const coverIdx = Math.min(meta.coverIdx || 0, blobs.length - 1);
+    const book = {
+      id: meta.id,
+      rawName: meta.rawName,
+      name: meta.name,
+      dir: meta.dir,
+      coverIdx,
+      files: blobs,
+      lastPage: meta.lastPage || 0,
+      addedAt: meta.addedAt,
+      coverUrl: URL.createObjectURL(blobs[coverIdx]),
+      pageUrls: null,
+      cardEl: null, nameEl: null
+    };
+    books.push(book);
+    addCard(book);
+  }
+
+  if (books.length) {
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('shelf-count').textContent = books.length + ' 本';
+  }
+}
+
+function updateShelfCount() {
+  document.getElementById('shelf-count').textContent = books.length ? books.length + ' 本' : '';
+  document.getElementById('empty-state').style.display = books.length ? 'none' : '';
+}
+
+loadBooksFromDB().catch(err => console.warn('加载书架失败', err));
+document.getElementById('open-btn').addEventListener('click', () =>
+  document.getElementById('folder-input').click()
+);
+
+document.getElementById('folder-input').addEventListener('change', e => {
+  const all = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+  if (!all.length) return;
+
+  pendingGroups = {};
+  for (const f of all) {
+    const parts = f.webkitRelativePath.split('/');
+    const key = parts.length > 1 ? parts[0] : '未命名';
+    (pendingGroups[key] ??= []).push(f);
+  }
+
+  for (const k of Object.keys(pendingGroups)) {
+    pendingGroups[k].sort((a, b) => {
+      const pad = s => s.replace(/\d+/g, n => n.padStart(10, '0'));
+      return pad(a.name).localeCompare(pad(b.name));
+    });
+  }
+
+  const firstKey = Object.keys(pendingGroups)[0];
+  pendingFiles = pendingGroups[firstKey];
+  pendingCoverIdx = 0;
+  pendingDir = 'rtl';
+
+  const nameInput = document.getElementById('setup-name');
+  nameInput.value = (firstKey === '未命名') ? '' : firstKey;
+
+  const container = document.getElementById('setup-previews');
+  container.innerHTML = '';
+  const previewFiles = pendingFiles.slice(0, 8);
+  previewFiles.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
+    const img = document.createElement('img');
+    img.className = 'setup-thumb' + (i === 0 ? ' selected' : '');
+    img.src = url;
+    img.draggable = false;
+    img.addEventListener('click', () => {
+      container.querySelectorAll('.setup-thumb').forEach(t => t.classList.remove('selected'));
+      img.classList.add('selected');
+      pendingCoverIdx = i;
+    });
+    container.appendChild(img);
+  });
+
+  document.getElementById('dir-rtl').classList.add('active');
+  document.getElementById('dir-ltr').classList.remove('active');
+
+  openSetupPanel();
+  document.getElementById('folder-input').value = '';
+});
+
+// Direction toggle
+document.getElementById('dir-rtl').addEventListener('click', () => {
+  pendingDir = 'rtl';
+  document.getElementById('dir-rtl').classList.add('active');
+  document.getElementById('dir-ltr').classList.remove('active');
+});
+document.getElementById('dir-ltr').addEventListener('click', () => {
+  pendingDir = 'ltr';
+  document.getElementById('dir-ltr').classList.add('active');
+  document.getElementById('dir-rtl').classList.remove('active');
+});
+
+function openSetupPanel() {
+  document.getElementById('setup-panel').classList.add('open');
+}
+function closeSetupPanel() {
+  document.getElementById('setup-panel').classList.remove('open');
+  pendingFiles = [];
+  pendingGroups = {};
+}
+
+document.getElementById('setup-cancel').addEventListener('click', closeSetupPanel);
+document.getElementById('setup-panel').addEventListener('click', e => {
+  if (e.target === document.getElementById('setup-panel')) closeSetupPanel();
+});
+
+document.getElementById('setup-confirm').addEventListener('click', async () => {
+  const rawName = document.getElementById('setup-name').value.trim();
+  const btn = document.getElementById('setup-confirm');
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+
+  let added = 0;
+  try {
+    for (const [gname, files] of Object.entries(pendingGroups)) {
+      if (books.some(b => b.rawName === gname)) continue;
+      const displayName = (Object.keys(pendingGroups).length === 1 && rawName) ? rawName : gname;
+      const coverIdx = Math.min(pendingCoverIdx, files.length - 1);
+      const coverFile = files[coverIdx];
+      const book = {
+        id: crypto.randomUUID(),
+        rawName: gname,
+        name: displayName || gname,
+        dir: pendingDir,
+        coverIdx,
+        files,
+        lastPage: 0,
+        addedAt: Date.now(),
+        coverUrl: URL.createObjectURL(coverFile),
+        pageUrls: null,
+        cardEl: null, nameEl: null
+      };
+      books.push(book);
+      addCard(book);
+      await saveBookToDB(book, files);
+      added++;
+    }
+    if (added) { updateShelfCount(); applySortIfActive(); }
+    closeSetupPanel();
+  } catch (err) {
+    console.error(err);
+    alert('保存失败，请检查浏览器存储空间后重试');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '加入书架';
+  }
+});
+
+//
+//  BATCH IMPORT — 选取母文件夹，自动遍历每个子文件夹作为一本书
+//
+let batchGroups = {};   // { folderName: [files...] }
+let batchDir = 'rtl';
+
+document.getElementById('batch-open-btn').addEventListener('click', () =>
+  document.getElementById('batch-folder-input').click()
+);
+
+document.getElementById('batch-folder-input').addEventListener('change', e => {
+  const all = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+  document.getElementById('batch-folder-input').value = '';
+  if (!all.length) { alert('所选文件夹中没有找到图片'); return; }
+
+  // 母文件夹下，第一层子文件夹名作为书名分组依据
+  // webkitRelativePath 形如: 母文件夹/子文件夹A/图1.jpg
+  const groups = {};
+  for (const f of all) {
+    const parts = f.webkitRelativePath.split('/');
+    // parts[0] = 母文件夹名, parts[1] = 子文件夹名（若图片直接放在母文件夹下则没有子层）
+    let key;
+    if (parts.length > 2) {
+      key = parts[1]; // 子文件夹
+    } else {
+      key = parts[0]; // 没有子文件夹，整个母文件夹当一本书
+    }
+    (groups[key] ??= []).push(f);
+  }
+
+  // 排序每组内的文件
+  for (const k of Object.keys(groups)) {
+    groups[k].sort((a, b) => {
+      const pad = s => s.replace(/\d+/g, n => n.padStart(10, '0'));
+      return pad(a.name).localeCompare(pad(b.name));
+    });
+  }
+
+  batchGroups = groups;
+  batchDir = 'rtl';
+  document.getElementById('batch-dir-rtl').classList.add('active');
+  document.getElementById('batch-dir-ltr').classList.remove('active');
+
+  renderBatchList();
+  document.getElementById('batch-setup-panel').classList.add('open');
+});
+
+document.getElementById('batch-dir-rtl').addEventListener('click', () => {
+  batchDir = 'rtl';
+  document.getElementById('batch-dir-rtl').classList.add('active');
+  document.getElementById('batch-dir-ltr').classList.remove('active');
+});
+document.getElementById('batch-dir-ltr').addEventListener('click', () => {
+  batchDir = 'ltr';
+  document.getElementById('batch-dir-ltr').classList.add('active');
+  document.getElementById('batch-dir-rtl').classList.remove('active');
+});
+
+function renderBatchList() {
+  const entries = Object.entries(batchGroups);
+  const newCount = entries.filter(([name]) => !books.some(b => b.rawName === name)).length;
+  const skipCount = entries.length - newCount;
+
+  document.getElementById('batch-hint').textContent =
+    `共发现 ${entries.length} 个文件夹，将创建 ${newCount} 本新书` +
+    (skipCount ? `（${skipCount} 本已存在，将跳过）` : '');
+
+  const list = document.getElementById('batch-list');
+  list.innerHTML = '';
+  for (const [name, files] of entries) {
+    const exists = books.some(b => b.rawName === name);
+    const item = document.createElement('div');
+    item.className = 'batch-item';
+
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(files[0]);
+    img.draggable = false;
+
+    const info = document.createElement('div');
+    info.className = 'batch-item-info';
+    const nm = document.createElement('div');
+    nm.className = 'batch-item-name';
+    nm.textContent = name;
+    const pg = document.createElement('div');
+    pg.className = 'batch-item-pages';
+    pg.textContent = files.length + ' 页';
+    info.append(nm, pg);
+
+    item.append(img, info);
+    if (exists) {
+      const skip = document.createElement('span');
+      skip.className = 'batch-item-skip';
+      skip.textContent = '已存在';
+      item.appendChild(skip);
+      item.style.opacity = '0.55';
+    }
+    list.appendChild(item);
+  }
+}
+
+function closeBatchPanel() {
+  document.getElementById('batch-setup-panel').classList.remove('open');
+  batchGroups = {};
+}
+document.getElementById('batch-cancel').addEventListener('click', closeBatchPanel);
+document.getElementById('batch-setup-panel').addEventListener('click', e => {
+  if (e.target === document.getElementById('batch-setup-panel')) closeBatchPanel();
+});
+
+document.getElementById('batch-confirm').addEventListener('click', async () => {
+  const btn = document.getElementById('batch-confirm');
+  btn.disabled = true;
+  btn.textContent = '导入中…';
+
+  let added = 0;
+  try {
+    for (const [gname, files] of Object.entries(batchGroups)) {
+      if (books.some(b => b.rawName === gname)) continue;
+      const book = {
+        id: crypto.randomUUID(),
+        rawName: gname,
+        name: gname,
+        dir: batchDir,
+        coverIdx: 0,
+        files,
+        lastPage: 0,
+        addedAt: Date.now(),
+        coverUrl: URL.createObjectURL(files[0]),
+        pageUrls: null,
+        cardEl: null, nameEl: null
+      };
+      books.push(book);
+      addCard(book);
+      await saveBookToDB(book, files);
+      added++;
+    }
+    if (added) {
+      updateShelfCount();
+      applySortIfActive();
+    }
+    closeBatchPanel();
+  } catch (err) {
+    console.error(err);
+    alert('批量导入失败，请检查浏览器存储空间后重试');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '全部加入书架';
+  }
+});
+
+//
+//  SORT — 按书名首字母排序
+//
+let sortActive = false;
+function applySortIfActive() {
+  if (sortActive) sortShelf();
+}
+function sortShelf() {
+  const grid = document.getElementById('books-grid');
+  const sorted = [...books].sort((a, b) =>
+    a.name.localeCompare(b.name, 'zh-Hans-CN', { sensitivity: 'base', numeric: true })
+  );
+  for (const b of sorted) {
+    if (b.cardEl) grid.appendChild(b.cardEl);
+  }
+}
+function restoreOriginalOrder() {
+  const grid = document.getElementById('books-grid');
+  const byAdded = [...books].sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+  for (const b of byAdded) {
+    if (b.cardEl) grid.appendChild(b.cardEl);
+  }
+}
+document.getElementById('sort-btn').addEventListener('click', () => {
+  sortActive = !sortActive;
+  document.getElementById('sort-btn').classList.toggle('active', sortActive);
+  if (sortActive) sortShelf(); else restoreOriginalOrder();
+});
+
+//
+//  BOOK CARD
+//
+function addCard(book) {
+  const card = document.createElement('div');
+  card.className = 'book-card';
+  card.style.animationDelay = (books.indexOf(book) % 12 * 35) + 'ms';
+
+  const w = document.createElement('div');
+  w.className = 'book-3d';
+
+  const spine = document.createElement('div');
+  spine.className = 'book-spine-bar';
+
+  const img = document.createElement('img');
+  img.className = 'book-cover-img';
+  img.src = book.coverUrl;
+  img.draggable = false;
+
+  const badge = document.createElement('div');
+  badge.className = 'book-dir-badge';
+  badge.textContent = book.dir === 'rtl' ? '右→左' : '左→右';
+
+  w.append(spine, img, badge);
+
+  const lbl = document.createElement('div');
+  lbl.className = 'book-label';
+  const nm = document.createElement('div');
+  nm.className = 'book-name';
+  nm.textContent = book.name;
+  const pg = document.createElement('div');
+  pg.className = 'book-pages';
+  pg.textContent = book.files.length + ' 页';
+  lbl.append(nm, pg);
+
+  card.append(w, lbl);
+  card.addEventListener('click', () => openBook(book));
+  book.cardEl = card;
+  book.nameEl = nm;
+  book.badgeEl = badge;
+  document.getElementById('books-grid').appendChild(card);
+}
+
+async function deleteBook(book) {
+  const idx = books.indexOf(book);
+  if (idx === -1) return;
+  const wasReading = cur === book;
+  if (wasReading) {
+    document.getElementById('toc-panel').classList.remove('open');
+    document.getElementById('completion-overlay').classList.remove('visible');
+    document.getElementById('reader-view').classList.remove('visible');
+    resetZoom(false);
+    cur = null;
+  }
+  books.splice(idx, 1);
+  book.cardEl?.remove();
+  updateShelfCount();
+  if (tocCache.has(book.id)) tocCache.delete(book.id);
+  if (tocCurrentId === book.id) {
+    tocCurrentId = null;
+    tocSpacer = null;
+    tocFloat = null;
+  }
+  try {
+    const db = await openDB();
+    const tx = db.transaction(['books', 'pages'], 'readwrite');
+    tx.objectStore('books').delete(book.id);
+    const pageIdx = tx.objectStore('pages').index('bookId');
+    const req = pageIdx.getAllKeys(book.id);
+    req.onsuccess = () => {
+      for (const key of req.result) tx.objectStore('pages').delete(key);
+    };
+  } catch (e) { console.warn('删除失败', e); }
+  if (wasReading) {
+    document.getElementById('page-strip').innerHTML = '';
+    document.getElementById('shelf-view').classList.remove('hidden');
+  }
+}
+
+//
+//  OPEN / CLOSE READER
+//
+function openBook(book) {
+  cur = book;
+  curPage = Math.min(book.lastPage || 0, book.files.length - 1);
+  imgScale = 1; imgTX = 0; imgTY = 0; panning = false;
+  if (!book.pageUrls) book.pageUrls = book.files.map(f => URL.createObjectURL(f));
+  buildStrip(curPage);
+  document.getElementById('rdr-title').textContent = book.name;
+  document.getElementById('prog-track').classList.toggle('rtl-dir', book.dir === 'rtl');
+  updateHUD();
+  document.getElementById('shelf-view').classList.add('hidden');
+  document.getElementById('reader-view').classList.add('visible');
+}
+function closeBook() {
+  if (cur) saveLastPage(cur);
+  document.getElementById('toc-panel').classList.remove('open');
+  document.getElementById('completion-overlay').classList.remove('visible');
+  document.getElementById('reader-view').classList.remove('visible');
+  resetZoom(false);
+  setTimeout(() => {
+    document.getElementById('shelf-view').classList.remove('hidden');
+    document.getElementById('page-strip').innerHTML = '';
+    cur = null;
+  }, 360);
+}
+document.getElementById('back-btn').addEventListener('click', closeBook);
+document.getElementById('rdr-rename-btn').addEventListener('click', () => {
+  if (cur) openRename(cur);
+});
+document.getElementById('rdr-delete-btn').addEventListener('click', () => {
+  if (cur) openDeleteConfirm(cur);
+});
+
+//
+//  PAGE STRIP
+//
+
+// RTL 模式下页码与 DOM 帧位置的映射：
+//   LTR DOM: [页0][页1]...[页N-1]  → domIdx = pageIdx
+//   RTL DOM: [页N-1][页N-2]...[页0] → domIdx = total-1-pageIdx（页0 在最右端）
+function pageToDomIdx(pageIdx) {
+  if (!cur || !cur.pageUrls) return pageIdx;
+  return cur.dir === 'rtl' ? cur.pageUrls.length - 1 - pageIdx : pageIdx;
+}
+
+function buildStrip(startPage = 0) {
+  const strip = document.getElementById('page-strip');
+  strip.innerHTML = '';
+  strip.classList.add('notrans');
+  const total = cur.pageUrls.length;
+  const isRtl = cur.dir === 'rtl';
+
+  for (let i = 0; i < total; i++) {
+    const pageIdx = isRtl ? total - 1 - i : i;
+    const frame = document.createElement('div');
+    frame.className = 'page-frame';
+    frame.dataset.idx = pageIdx;
+    const sp = document.createElement('div');
+    sp.className = 'page-spin';
+    frame.appendChild(sp);
+    strip.appendChild(frame);
+  }
+  setStripPos(startPage, false);
+  requestAnimationFrame(() => {
+    strip.classList.remove('notrans');
+    preloadAround(startPage);
+  });
+}
+
+function setStripPos(idx, anim = true) {
+  const strip = document.getElementById('page-strip');
+  if (!anim) strip.classList.add('notrans');
+  // RTL：页0在 DOM 末尾，translateX = -(total-1-idx)*100%
+  strip.style.transform = `translateX(${-pageToDomIdx(idx) * 100}%)`;
+  if (!anim) requestAnimationFrame(() => strip.classList.remove('notrans'));
+}
+
+function preloadAround(c) {
+  const total = cur.pageUrls.length;
+  for (let i = Math.max(0, c - PRELOAD); i <= Math.min(total - 1, c + PRELOAD); i++) loadFrame(i);
+}
+function loadFrame(pageIdx) {
+  const domIdx = pageToDomIdx(pageIdx);
+  const frame = document.getElementById('page-strip').children[domIdx];
+  if (!frame || frame.dataset.loaded) return;
+  frame.dataset.loaded = '1';
+  const img = new Image();
+  img.src = cur.pageUrls[pageIdx];
+  img.draggable = false;
+  img.onload = () => { frame.innerHTML = ''; frame.appendChild(img); };
+  img.onerror = () => { frame.innerHTML = '<div style="color:#555;font-size:11px">无法加载</div>'; };
+}
+
+//
+//  NAVIGATION
+//
+function goTo(idx) {
+  if (!cur) return;
+  const total = cur.pageUrls.length;
+  // 第一页继续往前 → 退回主界面
+  if (idx < 0) { closeBook(); return; }
+  // 最后一页继续往后 → 显示完成阅读
+  if (idx >= total) { showCompletion(); return; }
+  if (idx === curPage) return;
+  resetZoom(false);
+  curPage = idx;
+  setStripPos(curPage);
+  preloadAround(curPage);
+  updateHUD();
+  updateTocHighlight();
+  if (cur) { cur.lastPage = curPage; saveLastPage(cur); }
+}
+
+function navNext() { goTo(curPage + 1); }
+function navPrev() { goTo(curPage - 1); }
+
+// RTL 物理布局：页0在最右，页N-1在最左
+//   向右滑（dx>0）→ strip 右移 → 下一页（页1）从左侧入画  → navNext
+//   向左滑（dx<0）→ strip 左移 → 上一页（页0）从右侧入画  → navPrev
+// LTR 物理布局（普通）：
+//   向左滑 → 下一页从右入  → navNext
+//   向右滑 → 上一页从左入  → navPrev
+function navSwipeLeft()  { cur.dir === 'rtl' ? navPrev() : navNext(); }
+function navSwipeRight() { cur.dir === 'rtl' ? navNext() : navPrev(); }
+
+function updateHUD() {
+  const total = cur.pageUrls.length;
+  document.getElementById('rdr-num').textContent = (curPage + 1) + ' / ' + total;
+  const pct = total <= 1 ? 100 : curPage / (total - 1) * 100;
+  document.getElementById('prog-fill').style.width = pct + '%';
+}
+
+document.getElementById('prog-track').addEventListener('click', e => {
+  if (!cur) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  let ratio = (e.clientX - r.left) / r.width;
+  // RTL 进度条 direction:rtl，点击位置需镜像映射
+  if (cur.dir === 'rtl') ratio = 1 - ratio;
+  goTo(Math.round(ratio * (cur.pageUrls.length - 1)));
+});
+
+//
+//  TOUCH — SWIPE + PINCH ZOOM + PAN
+//
+const stage = document.getElementById('rdr-stage');
+let tSX = 0, tSY = 0, dragging = false, stripBase = 0;
+let pinching = false, pinchDist0 = 0, imgScale = 1, imgScaleBase = 1;
+let imgTX = 0, imgTY = 0;
+let panning = false, panStartX = 0, panStartY = 0, panBaseTX = 0, panBaseTY = 0;
+let touchCount = 0;           // 本次触摸序列中的手指数量峰值
+let suppressTapUntil = 0;     // 捏合/多指后抑制误触双击
+const ZOOM_MIN = 1, ZOOM_MAX = 5;
+
+function getImg() {
+  const frame = document.getElementById('page-strip').children[pageToDomIdx(curPage)];
+  return frame ? frame.querySelector('img') : null;
+}
+
+function getImgPanLimits(img, scale) {
+  if (!img || !img.naturalWidth) return { maxX: 0, maxY: 0 };
+  const frame = img.parentElement;
+  const fw = frame.clientWidth, fh = frame.clientHeight;
+  const ratio = Math.min(fw / img.naturalWidth, fh / img.naturalHeight);
+  const dw = img.naturalWidth * ratio;
+  const dh = img.naturalHeight * ratio;
+  const maxX = Math.max(0, (dw * scale - fw) / 2);
+  const maxY = Math.max(0, (dh * scale - fh) / 2);
+  return { maxX, maxY };
+}
+
+function clampPan(tx, ty, limits) {
+  return {
+    tx: Math.max(-limits.maxX, Math.min(limits.maxX, tx)),
+    ty: Math.max(-limits.maxY, Math.min(limits.maxY, ty))
+  };
+}
+
+function applyImgTransform(img, scale, tx, ty, animate) {
+  if (!img) return;
+  img.style.transition = animate ? 'transform .25s' : 'none';
+  img.style.transform = `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`;
+}
+
+function setZoom(scale, tx, ty, animate = false) {
+  const img = getImg();
+  if (!img) { imgScale = scale; imgTX = tx; imgTY = ty; return; }
+  if (scale <= 1) {
+    imgScale = 1; imgTX = 0; imgTY = 0;
+    applyImgTransform(img, 1, 0, 0, animate);
+    return;
+  }
+  const c = clampPan(tx, ty, getImgPanLimits(img, scale));
+  imgScale = scale; imgTX = c.tx; imgTY = c.ty;
+  applyImgTransform(img, imgScale, imgTX, imgTY, animate);
+}
+
+function resetZoom(animate = true) {
+  imgScale = 1; imgTX = 0; imgTY = 0; panning = false;
+  const img = getImg();
+  if (img) applyImgTransform(img, 1, 0, 0, animate);
+}
+
+function beginPan(clientX, clientY) {
+  panning = true;
+  dragging = false;
+  panStartX = clientX;
+  panStartY = clientY;
+  panBaseTX = imgTX;
+  panBaseTY = imgTY;
+}
+
+function dist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+
+stage.addEventListener('touchstart', e => {
+  touchCount = Math.max(touchCount, e.touches.length);
+
+  if (e.touches.length >= 2) {
+    pinching = true;
+    panning = false;
+    dragging = false;
+    pinchDist0 = dist(e.touches);
+    imgScaleBase = imgScale;
+    document.getElementById('page-strip').classList.add('notrans');
+    return;
+  }
+
+  // 单指
+  pinching = false;
+  tSX = e.touches[0].clientX;
+  tSY = e.touches[0].clientY;
+  dragging = false;
+
+  if (imgScale > 1) {
+    beginPan(tSX, tSY);
+    return;
+  }
+
+  panning = false;
+  stripBase = -pageToDomIdx(curPage) * stage.offsetWidth;
+  document.getElementById('page-strip').classList.add('notrans');
+}, { passive: true });
+
+stage.addEventListener('touchmove', e => {
+  if (e.touches.length >= 2) {
+    if (!pinching) {
+      pinching = true;
+      panning = false;
+      dragging = false;
+      pinchDist0 = dist(e.touches);
+      imgScaleBase = imgScale;
+      document.getElementById('page-strip').classList.add('notrans');
+    }
+    e.preventDefault();
+    const newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, imgScaleBase * dist(e.touches) / pinchDist0));
+    setZoom(newScale, imgTX, imgTY, false);
+    return;
+  }
+
+  if (pinching) return;
+
+  // 放大状态：单指平移
+  if (imgScale > 1) {
+    e.preventDefault();
+    if (!panning) beginPan(tSX, tSY);
+    const dx = e.touches[0].clientX - panStartX;
+    const dy = e.touches[0].clientY - panStartY;
+    setZoom(imgScale, panBaseTX + dx, panBaseTY + dy, false);
+    return;
+  }
+
+  // 未放大：左右滑翻页
+  const dx = e.touches[0].clientX - tSX;
+  const dy = e.touches[0].clientY - tSY;
+  if (!dragging && Math.abs(dx) > 8) dragging = true;
+  if (!dragging) return;
+  document.getElementById('page-strip').style.transform = `translateX(${stripBase + dx}px)`;
+  e.preventDefault();
+}, { passive: false });
+
+stage.addEventListener('touchend', e => {
+  const remaining = e.touches.length;
+
+  // 捏合中抬起一根手指 → 另一根还在，切换为平移
+  if (pinching && remaining === 1 && imgScale > 1) {
+    pinching = false;
+    suppressTapUntil = Date.now() + 400;
+    beginPan(e.touches[0].clientX, e.touches[0].clientY);
+    tSX = e.touches[0].clientX;
+    tSY = e.touches[0].clientY;
+    return;
+  }
+
+  if (pinching && remaining < 2) pinching = false;
+
+  // 还有手指在屏幕上，等待全部抬起
+  if (remaining > 0) return;
+
+  // 全部手指抬起
+  suppressTapUntil = touchCount >= 2 ? Date.now() + 400 : suppressTapUntil;
+  touchCount = 0;
+
+  if (panning) {
+    panning = false;
+    return;
+  }
+
+  document.getElementById('page-strip').classList.remove('notrans');
+
+  // 捏合后缩放接近 1 时归位
+  if (imgScale <= 1.05) resetZoom(false);
+
+  if (imgScale > 1) return;
+
+  const dx = e.changedTouches[0].clientX - tSX;
+  const dy = e.changedTouches[0].clientY - tSY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 44) {
+    dx < 0 ? navSwipeLeft() : navSwipeRight();
+  } else {
+    setStripPos(curPage);
+  }
+}, { passive: true });
+
+stage.addEventListener('touchcancel', () => {
+  pinching = false;
+  panning = false;
+  dragging = false;
+  touchCount = 0;
+}, { passive: true });
+
+// 双击还原缩放（须在全部手指抬起后判定，且排除捏合后的误触）
+let lastTap = 0;
+stage.addEventListener('touchend', e => {
+  if (e.touches.length > 0) return;
+  if (Date.now() < suppressTapUntil) return;
+  if (pinching || panning || dragging) return;
+
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    if (imgScale > 1) resetZoom(true);
+    lastTap = 0;
+  } else {
+    lastTap = now;
+  }
+}, { passive: true });
+
+// Mouse: swipe pages or pan when zoomed
+let mSX = 0, mSY = 0, mDragging = false, mPanning = false;
+stage.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  mSX = e.clientX;
+  mSY = e.clientY;
+
+  if (imgScale > 1) {
+    mPanning = true;
+    panBaseTX = imgTX;
+    panBaseTY = imgTY;
+    e.preventDefault();
+    return;
+  }
+
+  mDragging = true;
+  mPanning = false;
+  stripBase = -pageToDomIdx(curPage) * stage.offsetWidth;
+  document.getElementById('page-strip').classList.add('notrans');
+  e.preventDefault();
+});
+window.addEventListener('mousemove', e => {
+  if (!cur) return;
+
+  if (mPanning && imgScale > 1) {
+    setZoom(imgScale, panBaseTX + e.clientX - mSX, panBaseTY + e.clientY - mSY, false);
+    return;
+  }
+
+  if (!mDragging || imgScale > 1) return;
+  document.getElementById('page-strip').style.transform = `translateX(${stripBase + e.clientX - mSX}px)`;
+});
+window.addEventListener('mouseup', e => {
+  if (mPanning) {
+    mPanning = false;
+    return;
+  }
+  if (!mDragging) return;
+  mDragging = false;
+  document.getElementById('page-strip').classList.remove('notrans');
+  const dx = e.clientX - mSX;
+  if (Math.abs(dx) > 50) dx < 0 ? navSwipeLeft() : navSwipeRight();
+  else setStripPos(curPage);
+});
+
+// Wheel zoom (desktop)
+stage.addEventListener('wheel', e => {
+  if (!cur) return;
+  const img = getImg();
+  if (!img) return;
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.15 : 0.15;
+  setZoom(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, imgScale + delta)), imgTX, imgTY, false);
+}, { passive: false });
+
+// 键盘：按屏幕空间方向导航
+//   LTR: → = 下一页, ← = 上一页
+//   RTL: → = 上一页（屏幕向右 = 故事倒退）, ← = 下一页（屏幕向左 = 故事前进）
+document.addEventListener('keydown', e => {
+  if (!cur) return;
+  const isRtl = cur.dir === 'rtl';
+  if (e.key === 'ArrowRight') isRtl ? navPrev() : navNext();
+  if (e.key === 'ArrowLeft')  isRtl ? navNext() : navPrev();
+  if (e.key === 'ArrowDown')  navNext();
+  if (e.key === 'ArrowUp')    navPrev();
+  if (e.key === 'Escape') {
+    if (document.getElementById('toc-panel').classList.contains('open'))
+      closeToc();
+    else closeBook();
+  }
+});
+
+//
+//  TABLE OF CONTENTS — 虚拟滚动（只渲染可见区域）
+//
+const TOC_COLS = 3;
+const TOC_GAP = 10;
+const TOC_PAD = 12;
+const tocCache = new Map(); // bookId -> { loadedPages:Set, scrollTop, rowH }
+let tocCurrentId = null;
+let tocSpacer = null;
+let tocFloat = null;
+let tocRowH = 130;
+let tocScrollRaf = 0;
+
+document.getElementById('toc-btn').addEventListener('click', openToc);
+document.getElementById('toc-close').addEventListener('click', closeToc);
+document.getElementById('toc-panel').addEventListener('click', e => {
+  if (e.target === document.getElementById('toc-panel')) closeToc();
+});
+
+function openToc() {
+  if (!cur) return;
+  document.getElementById('toc-panel').classList.add('open');
+  const tryMount = () => {
+    if (!cur) return;
+    const grid = document.getElementById('toc-grid');
+    if (grid.clientWidth <= 0) return;
+    mountToc(cur);
+  };
+  requestAnimationFrame(() => requestAnimationFrame(tryMount));
+  document.getElementById('toc-sheet').addEventListener('transitionend', tryMount, { once: true });
+}
+
+function closeToc() {
+  if (tocCurrentId && tocCache.has(tocCurrentId)) {
+    const grid = document.getElementById('toc-grid');
+    const inst = tocCache.get(tocCurrentId);
+    inst.scrollTop = grid.scrollTop;
+    inst.rowH = tocRowH;
+  }
+  document.getElementById('toc-panel').classList.remove('open');
+}
+
+function calcTocRowH(grid) {
+  const w = grid.clientWidth - TOC_PAD * 2;
+  if (w <= 0) return 0;
+  const cellW = (w - TOC_GAP * (TOC_COLS - 1)) / TOC_COLS;
+  return cellW * 1.5 + TOC_GAP;
+}
+
+function loadTocThumb(wrap, book, idx) {
+  if (wrap.dataset.loaded === '1') return;
+  const inst = tocCache.get(book.id);
+  if (inst?.loadedPages.has(idx)) {
+    // 已加载过，直接插入图片
+    const ratio = wrap.querySelector('.toc-thumb-ratio');
+    if (ratio && !ratio.querySelector('img')) {
+      const img = document.createElement('img');
+      img.src = book.pageUrls[idx];
+      img.draggable = false;
+      const spin = ratio.querySelector('.toc-thumb-spin');
+      if (spin) spin.replaceWith(img);
+      else ratio.appendChild(img);
+    }
+    wrap.dataset.loaded = '1';
+    return;
+  }
+  wrap.dataset.loaded = 'loading';
+  const img = document.createElement('img');
+  img.src = book.pageUrls[idx];
+  img.draggable = false;
+  img.onload = () => {
+    wrap.dataset.loaded = '1';
+    inst?.loadedPages.add(idx);
+    const spin = wrap.querySelector('.toc-thumb-spin');
+    if (spin) spin.replaceWith(img);
+  };
+  img.onerror = () => { wrap.dataset.loaded = '0'; };
+}
+
+function mountToc(book) {
+  const grid = document.getElementById('toc-grid');
+
+  if (tocCurrentId === book.id && tocFloat && grid.contains(tocFloat)) {
+    refreshTocLayout(book);
+    updateTocHighlight();
+    scrollTocToCurrent();
+    return;
+  }
+
+  if (tocCurrentId && tocCache.has(tocCurrentId)) {
+    const prev = tocCache.get(tocCurrentId);
+    prev.scrollTop = grid.scrollTop;
+    prev.rowH = tocRowH;
+  }
+
+  grid.innerHTML = '';
+  grid.onscroll = null;
+  tocCurrentId = book.id;
+
+  const cached = tocCache.get(book.id) || { loadedPages: new Set(), scrollTop: 0, rowH: 130 };
+  if (!cached.loadedPages) cached.loadedPages = new Set();
+  tocCache.set(book.id, cached);
+
+  tocSpacer = document.createElement('div');
+  tocSpacer.className = 'toc-spacer';
+  tocFloat = document.createElement('div');
+  tocFloat.className = 'toc-float';
+  grid.append(tocSpacer, tocFloat);
+
+  tocRowH = calcTocRowH(grid) || cached.rowH || 130;
+  cached.rowH = tocRowH;
+  updateTocSpacer(book.pageUrls.length);
+
+  grid.onscroll = () => {
+    if (tocScrollRaf) return;
+    tocScrollRaf = requestAnimationFrame(() => {
+      tocScrollRaf = 0;
+      renderTocVisible(book);
+    });
+  };
+
+  // 监听尺寸变化（首次打开 / 旋转屏幕）
+  if (!grid._tocResizeObs) {
+    grid._tocResizeObs = new ResizeObserver(() => {
+      if (cur && tocCurrentId === cur.id) refreshTocLayout(cur);
+    });
+    grid._tocResizeObs.observe(grid);
+  }
+
+  refreshTocLayout(book);
+  grid.scrollTop = cached.scrollTop || 0;
+  updateTocHighlight();
+  scrollTocToCurrent();
+}
+
+function refreshTocLayout(book) {
+  const grid = document.getElementById('toc-grid');
+  const h = calcTocRowH(grid);
+  if (h > 0) {
+    tocRowH = h;
+    const inst = tocCache.get(book.id);
+    if (inst) inst.rowH = h;
+    updateTocSpacer(book.pageUrls.length);
+  }
+  renderTocVisible(book);
+}
+
+function updateTocSpacer(total) {
+  const rows = Math.ceil(total / TOC_COLS);
+  tocSpacer.style.height = (rows * tocRowH + TOC_PAD * 2) + 'px';
+  tocFloat.style.height = (rows * tocRowH) + 'px';
+}
+
+function createTocThumb(idx, book) {
+  const wrap = document.createElement('div');
+  wrap.className = 'toc-thumb-wrap' + (idx === curPage ? ' current' : '');
+  wrap.dataset.idx = idx;
+
+  const ratio = document.createElement('div');
+  ratio.className = 'toc-thumb-ratio';
+
+  const spin = document.createElement('div');
+  spin.className = 'toc-thumb-spin';
+  const sp = document.createElement('div');
+  sp.className = 'page-spin';
+  sp.style.cssText = 'width:20px;height:20px';
+  spin.appendChild(sp);
+  ratio.appendChild(spin);
+
+  const num = document.createElement('div');
+  num.className = 'toc-page-num';
+  num.textContent = idx + 1;
+
+  wrap.append(ratio, num);
+  wrap.addEventListener('click', () => { goTo(idx); closeToc(); });
+  loadTocThumb(wrap, book, idx);
+  return wrap;
+}
+
+function renderTocVisible(book) {
+  if (!tocFloat || !tocSpacer || tocCurrentId !== book.id) return;
+
+  const grid = document.getElementById('toc-grid');
+  const total = book.pageUrls.length;
+  if (!total) return;
+
+  const cellW = (grid.clientWidth - TOC_PAD * 2 - TOC_GAP * (TOC_COLS - 1)) / TOC_COLS;
+  if (cellW <= 0 || tocRowH <= 0) return;
+
+  const rows = Math.ceil(total / TOC_COLS);
+  const scrollTop = grid.scrollTop;
+  const viewH = grid.clientHeight || 500;
+
+  let startRow = Math.floor(scrollTop / tocRowH) - 2;
+  let endRow = Math.ceil((scrollTop + viewH) / tocRowH) + 2;
+  startRow = Math.max(0, startRow);
+  endRow = Math.min(rows - 1, endRow);
+
+  const startIdx = startRow * TOC_COLS;
+  const endIdx = Math.min(total - 1, (endRow + 1) * TOC_COLS - 1);
+  const needed = new Set();
+  for (let i = startIdx; i <= endIdx; i++) needed.add(i);
+
+  tocFloat.querySelectorAll('.toc-cell').forEach(cell => {
+    if (!needed.has(parseInt(cell.dataset.idx, 10))) cell.remove();
+  });
+
+  const existing = new Set();
+  tocFloat.querySelectorAll('.toc-cell').forEach(cell => {
+    existing.add(parseInt(cell.dataset.idx, 10));
+  });
+
+  const frag = document.createDocumentFragment();
+
+  for (let idx = startIdx; idx <= endIdx; idx++) {
+    if (existing.has(idx)) continue;
+    const row = Math.floor(idx / TOC_COLS);
+    const col = idx % TOC_COLS;
+
+    const cell = document.createElement('div');
+    cell.className = 'toc-cell';
+    cell.dataset.idx = idx;
+    cell.style.top = (row * tocRowH) + 'px';
+    cell.style.left = (col * (cellW + TOC_GAP)) + 'px';
+    cell.style.width = cellW + 'px';
+
+    cell.appendChild(createTocThumb(idx, book));
+    frag.appendChild(cell);
+  }
+
+  tocFloat.appendChild(frag);
+}
+
+function scrollTocToCurrent() {
+  const grid = document.getElementById('toc-grid');
+  if (!grid || !cur) return;
+  const row = Math.floor(curPage / TOC_COLS);
+  const top = Math.max(0, row * tocRowH - tocRowH);
+  grid.scrollTop = top;
+  renderTocVisible(cur);
+  updateTocHighlight();
+}
+
+function updateTocHighlight() {
+  if (!tocFloat) return;
+  tocFloat.querySelectorAll('.toc-thumb-wrap').forEach(w => {
+    w.classList.toggle('current', parseInt(w.dataset.idx, 10) === curPage);
+  });
+}
+
+window.addEventListener('resize', () => {
+  if (tocCurrentId && cur && document.getElementById('toc-panel').classList.contains('open')) {
+    refreshTocLayout(cur);
+  }
+});
+
+//
+//  COMPLETION OVERLAY
+//
+function showCompletion() {
+  if (!cur) return;
+  document.getElementById('completion-title').textContent = '《' + cur.name + '》';
+  document.getElementById('completion-overlay').classList.add('visible');
+}
+document.getElementById('completion-back-btn').addEventListener('click', closeBook);
+
+//
+//  RENAME
+//
+function openDeleteConfirm(book) {
+  deleteTarget = book;
+  document.getElementById('delete-book-name').textContent = '《' + book.name + '》';
+  document.getElementById('delete-modal').classList.add('open');
+}
+function doDelete() {
+  if (!deleteTarget) return;
+  const book = deleteTarget;
+  deleteTarget = null;
+  document.getElementById('delete-modal').classList.remove('open');
+  deleteBook(book);
+}
+document.getElementById('delete-cancel').addEventListener('click', () => {
+  document.getElementById('delete-modal').classList.remove('open');
+  deleteTarget = null;
+});
+document.getElementById('delete-ok').addEventListener('click', doDelete);
+document.getElementById('delete-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('delete-modal')) {
+    document.getElementById('delete-modal').classList.remove('open');
+    deleteTarget = null;
+  }
+});
+
+function openRename(book) {
+  renameTarget = book;
+  document.getElementById('rename-input').value = book.name;
+  document.getElementById('rename-modal').classList.add('open');
+  setTimeout(() => document.getElementById('rename-input').select(), 50);
+}
+function doRename() {
+  if (!renameTarget) return;
+  const v = document.getElementById('rename-input').value.trim();
+  if (!v) return;
+  renameTarget.name = v;
+  if (renameTarget.nameEl) renameTarget.nameEl.textContent = v;
+  if (cur === renameTarget) document.getElementById('rdr-title').textContent = v;
+  updateBookMeta(renameTarget).catch(err => console.warn('保存书名失败', err));
+  document.getElementById('rename-modal').classList.remove('open');
+  renameTarget = null;
+}
+document.getElementById('rename-cancel').addEventListener('click', () => {
+  document.getElementById('rename-modal').classList.remove('open'); renameTarget = null;
+});
+document.getElementById('rename-ok').addEventListener('click', doRename);
+document.getElementById('rename-input').addEventListener('keydown', e => { if (e.key === 'Enter') doRename(); });
+document.getElementById('rename-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('rename-modal')) {
+    document.getElementById('rename-modal').classList.remove('open'); renameTarget = null;
+  }
+});
+</script>
+
+</body>
+</html>
